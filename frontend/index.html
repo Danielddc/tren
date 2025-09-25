@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚂 Simulador de Tren - Tiempo Real</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="background"></div>
+    
+    <!-- Panel de Control Principal -->
+    <div class="main-container">
+        <div class="control-panel">
+            <div class="glass-card config-card">
+                <h2><i class="fas fa-cog"></i> Configuración</h2>
+                <p>Establece los parámetros iniciales para la simulación del tren</p>
+                
+                <form id="simulationForm">
+                    <label for="initialVelocity">
+                        <i class="fas fa-tachometer-alt"></i> Velocidad Inicial (m/s)
+                    </label>
+                    <input type="number" id="initialVelocity" value="10" min="0" max="50" step="0.1">
+                    
+                    <label for="numStations">
+                        <i class="fas fa-map-marker-alt"></i> Número de Estaciones
+                    </label>
+                    <input type="number" id="numStations" value="5" min="1" max="10" step="1">
+                    
+                    <label for="stationDistance">
+                        <i class="fas fa-ruler"></i> Distancia entre Estaciones (m)
+                    </label>
+                    <input type="number" id="stationDistance" value="1000" min="100" max="5000" step="50">
+                    
+                    <label for="acceleration">
+                        <i class="fas fa-rocket"></i> Aceleración Inicial (m/s²)
+                    </label>
+                    <input type="number" id="acceleration" value="2" min="-10" max="10" step="0.1">
+                    
+                    <label for="timeStep">
+                        <i class="fas fa-clock"></i> Paso de Simulación (s)
+                    </label>
+                    <input type="number" id="timeStep" value="0.05" min="0.01" max="0.5" step="0.01">
+                    
+                    <!-- Nombres de Estaciones -->
+                    <div class="station-names-section">
+                        <label>
+                            <i class="fas fa-edit"></i> Nombres de Estaciones
+                        </label>
+                        <div id="stationNamesContainer">
+                            <!-- Se generará dinámicamente -->
+                        </div>
+                        <button type="button" id="generateNamesBtn" class="btn-secondary small">
+                            <i class="fas fa-magic"></i> Generar Nombres
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="button-group">
+                    <button id="startBtn" class="btn-primary">
+                        <i class="fas fa-play"></i> Iniciar
+                    </button>
+                    <button id="pauseBtn" class="btn-secondary" disabled>
+                        <i class="fas fa-pause"></i> Pausar
+                    </button>
+                    <button id="stopBtn" class="btn-danger" disabled>
+                        <i class="fas fa-stop"></i> Detener
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Control de Aceleración en Tiempo Real -->
+            <div class="glass-card control-card">
+                <h2><i class="fas fa-sliders-h"></i> Control en Tiempo Real</h2>
+                <p>Ajusta la aceleración mientras la simulación está en ejecución</p>
+                
+                <div class="acceleration-control">
+                    <label for="accelerationSlider">
+                        <i class="fas fa-gauge"></i> Aceleración: <span id="accelValue">0.0</span> m/s²
+                    </label>
+                    <input type="range" id="accelerationSlider" min="-10" max="10" step="0.1" value="0" disabled>
+                    <div class="slider-marks">
+                        <span>-10</span>
+                        <span>0</span>
+                        <span>+10</span>
+                    </div>
+                </div>
+                
+                <!-- Estado Actual -->
+                <div class="status-display">
+                    <div class="status-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Tiempo: <strong id="currentTime">0.0s</strong></span>
+                    </div>
+                    <div class="status-item">
+                        <i class="fas fa-location-arrow"></i>
+                        <span>Posición: <strong id="currentPosition">0.0m</strong></span>
+                    </div>
+                    <div class="status-item">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Velocidad: <strong id="currentVelocity">0.0 m/s</strong></span>
+                    </div>
+                </div>
+                
+                <!-- Conexión Status -->
+                <div class="connection-status">
+                    <span id="connectionStatus" class="status-disconnected">
+                        <i class="fas fa-wifi"></i> Desconectado
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel de Gráficas -->
+        <div class="charts-panel">
+            <div class="glass-card chart-card">
+                <h3><i class="fas fa-chart-line"></i> Velocidad vs Tiempo</h3>
+                <canvas id="velocityChart"></canvas>
+            </div>
+            
+            <div class="glass-card chart-card">
+                <h3><i class="fas fa-chart-area"></i> Posición vs Tiempo</h3>
+                <canvas id="positionChart"></canvas>
+            </div>
+            
+            <div class="glass-card chart-card">
+                <h3><i class="fas fa-chart-bar"></i> Aceleración vs Tiempo</h3>
+                <canvas id="accelerationChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Log de Estaciones -->
+        <div class="stations-panel">
+            <div class="glass-card stations-card">
+                <h3><i class="fas fa-list"></i> Log de Estaciones</h3>
+                <div id="stationsLog" class="stations-log">
+                    <p class="no-data">Inicia la simulación para ver el log de estaciones</p>
+                </div>
+            </div>
+            
+            <!-- Tiempos de Llegada Estimados -->
+            <div class="glass-card arrival-times-card">
+                <h3><i class="fas fa-clock"></i> Tiempos de Llegada Estimados</h3>
+                <div id="arrivalTimesDisplay" class="arrival-times-display">
+                    <p class="no-data">Inicia la simulación para ver tiempos estimados</p>
+                </div>
+                <button id="refreshTimesBtn" class="btn-secondary small" disabled>
+                    <i class="fas fa-refresh"></i> Actualizar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <div class="footer">
+        <p>🚂 Simulador de Tren con Física en Tiempo Real</p>
+        <p><a href="https://github.com" target="_blank">Ver código fuente</a></p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/websocket.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
