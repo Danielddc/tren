@@ -168,6 +168,30 @@ class TrainWebSocketClient {
                 this.emit('arrivalTimes', payload);
                 break;
                 
+            case 'arduinoConnected':
+                this.emit('arduinoConnected', payload);
+                break;
+                
+            case 'arduinoDisconnected':
+                this.emit('arduinoDisconnected', payload);
+                break;
+                
+            case 'arduinoData':
+                this.emit('arduinoData', payload);
+                break;
+                
+            case 'arduinoPorts':
+                this.emit('arduinoPorts', payload);
+                break;
+                
+            case 'arduinoStatus':
+                this.emit('arduinoStatus', payload);
+                break;
+                
+            case 'stationReached':
+                this.emit('stationReached', payload);
+                break;
+                
             case 'error':
                 this.emit('serverError', payload);
                 break;
@@ -234,6 +258,25 @@ class TrainWebSocketClient {
 
     requestState() {
         return this.send('getState');
+    }
+
+    /**
+     * Métodos de control de Arduino
+     */
+    connectArduino(portPath, baudRate) {
+        return this.send('connectArduino', { portPath, baudRate });
+    }
+
+    disconnectArduino() {
+        return this.send('disconnectArduino');
+    }
+
+    listArduinoPorts() {
+        return this.send('listArduinoPorts');
+    }
+
+    getArduinoStatus() {
+        return this.send('getArduinoStatus');
     }
 
     /**

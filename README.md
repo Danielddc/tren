@@ -6,7 +6,9 @@
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
 [![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 
-Simulación física de tren en tiempo real con interfaz glassmorphism, control de aceleración interactivo y visualización de gráficas dinámicas.
+# 🚂 Simulador de Tren en Tiempo Real
+
+Simulación física de un tren con comunicación en tiempo real usando WebSocket, gráficas interactivas, cálculos precisos de cinemática y **soporte para datos reales desde Arduino**.
 
 ## ✨ Características Principales
 
@@ -17,6 +19,9 @@ Simulación física de tren en tiempo real con interfaz glassmorphism, control d
 - 🌐 **WebSocket** - Comunicación bidireccional de baja latencia
 - 🎨 **Glassmorphism UI** - Interfaz moderna con efectos de vidrio esmerilado
 - 🧮 **Física Precisa** - Motor basado en ecuaciones cinemáticas reales
+- 🔌 **Integración con Arduino** - Recibe datos reales de sensores (tiempo, velocidad, aceleración, distancia)
+- 📡 **Auto-detección de Puertos** - Detecta automáticamente el puerto serial de Arduino
+- 🔄 **Modo Híbrido** - Combina simulación con datos reales para comparación
 
 ## 📁 Estructura del Proyecto
 
@@ -26,16 +31,20 @@ TREN/
 │   ├── src/
 │   │   ├── server.js         # Servidor principal
 │   │   ├── physics.js        # Motor de física cinemática
-│   │   └── websocket.js      # Manejo de WebSocket
+│   │   ├── websocket.js      # Manejo de WebSocket
+│   │   └── arduino.js        # Comunicación serial con Arduino
 │   └── package.json
 ├── frontend/          # Cliente web
 │   ├── index.html           # Interfaz principal
 │   ├── css/
-│   │   └── styles.css       # Estilos
+│   │   └── styles.css       # Estilos (incluye panel Arduino)
 │   └── js/
 │       ├── app.js           # Lógica principal del cliente
 │       ├── charts.js        # Manejo de gráficas
 │       └── websocket.js     # Cliente WebSocket
+├── arduino_example/   # Código de ejemplo para Arduino
+│   ├── train_sensor.ino     # Sketch de Arduino
+│   └── README_ARDUINO.md    # Documentación Arduino
 ├── docs/              # Documentación
 └── README.md
 ```
@@ -53,11 +62,27 @@ npm install
 npm start
 ```
 
-### Uso
-1. Abrir `frontend/index.html` en el navegador
-2. Configurar parámetros iniciales
-3. Hacer clic en "Iniciar Simulación"
-4. Usar el slider para cambiar aceleración en tiempo real
+El servidor se iniciará en `http://localhost:8080`
+
+### Uso Básico (Simulación)
+1. Abrir navegador en `http://localhost:8080`
+2. Configurar parámetros iniciales (velocidad, estaciones, aceleración)
+3. (Opcional) Personalizar nombres de estaciones
+4. Hacer clic en "Iniciar Simulación"
+5. Usar el slider para cambiar aceleración en tiempo real
+6. Observar gráficas y tiempos de llegada actualizándose
+
+### Uso con Arduino (Datos Reales)
+1. Cargar el sketch `arduino_example/train_sensor.ino` en tu Arduino
+2. Conectar Arduino al puerto USB
+3. En la interfaz web, ir al panel "Conexión Arduino"
+4. Hacer clic en "Actualizar Puertos" para detectar el Arduino
+5. Seleccionar puerto y velocidad (baud rate)
+6. Hacer clic en "Conectar"
+7. Iniciar simulación - los datos del Arduino se mostrarán en tiempo real
+8. Los gráficos se actualizarán con los datos reales del sensor
+
+**📖 Para más detalles sobre Arduino, ver [`arduino_example/README_ARDUINO.md`](arduino_example/README_ARDUINO.md)**
 
 ## 📊 Parámetros de Entrada
 

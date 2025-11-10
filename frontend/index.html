@@ -13,155 +13,176 @@
     
     <!-- Panel de Control Principal -->
     <div class="main-container">
-        <div class="control-panel">
+        <!-- Panel Superior: Configuración de Estaciones -->
+        <div class="top-panel">
             <div class="glass-card config-card">
-                <h2><i class="fas fa-cog"></i> Configuración</h2>
-                <p>Establece los parámetros iniciales para la simulación del tren</p>
+                <h2><i class="fas fa-map-marker-alt"></i> Configuración de Estaciones</h2>
                 
                 <form id="simulationForm">
-                    <label for="initialVelocity">
-                        <i class="fas fa-tachometer-alt"></i> Velocidad Inicial (m/s)
-                    </label>
-                    <input type="number" id="initialVelocity" value="10" min="0" max="50" step="0.1">
-                    
-                    <label for="numStations">
-                        <i class="fas fa-map-marker-alt"></i> Número de Estaciones
-                    </label>
-                    <input type="number" id="numStations" value="5" min="1" max="10" step="1">
-                    
-                    <label for="stationDistance">
-                        <i class="fas fa-ruler"></i> Distancia entre Estaciones (m)
-                    </label>
-                    <input type="number" id="stationDistance" value="1000" min="100" max="5000" step="50">
-                    
-                    <label for="acceleration">
-                        <i class="fas fa-rocket"></i> Aceleración Inicial (m/s²)
-                    </label>
-                    <input type="number" id="acceleration" value="2" min="-10" max="10" step="0.1">
-                    
-                    <label for="timeStep">
-                        <i class="fas fa-clock"></i> Paso de Simulación (s)
-                    </label>
-                    <input type="number" id="timeStep" value="0.05" min="0.01" max="0.5" step="0.01">
+                    <div class="station-config-grid">
+                        <div class="form-group">
+                            <label for="numStations">
+                                <i class="fas fa-hashtag"></i> Número de Estaciones
+                            </label>
+                            <input type="number" id="numStations" value="5" min="1" max="20" step="1">
+                        </div>
+                    </div>
                     
                     <!-- Nombres de Estaciones -->
                     <div class="station-names-section">
                         <label>
                             <i class="fas fa-edit"></i> Nombres de Estaciones
                         </label>
-                        <div id="stationNamesContainer">
+                        <div id="stationNamesContainer" class="station-names-grid">
                             <!-- Se generará dinámicamente -->
                         </div>
                         <button type="button" id="generateNamesBtn" class="btn-secondary small">
-                            <i class="fas fa-magic"></i> Generar Nombres
+                            <i class="fas fa-magic"></i> Generar Nombres Automáticos
                         </button>
                     </div>
                 </form>
-                
-                <div class="button-group">
-                    <button id="startBtn" class="btn-primary">
-                        <i class="fas fa-play"></i> Iniciar
-                    </button>
-                    <button id="pauseBtn" class="btn-secondary" disabled>
-                        <i class="fas fa-pause"></i> Pausar
-                    </button>
-                    <button id="stopBtn" class="btn-danger" disabled>
-                        <i class="fas fa-stop"></i> Detener
-                    </button>
-                </div>
             </div>
             
-            <!-- Control de Aceleración en Tiempo Real -->
-            <div class="glass-card control-card">
-                <h2><i class="fas fa-sliders-h"></i> Control en Tiempo Real</h2>
-                <p>Ajusta la aceleración mientras la simulación está en ejecución</p>
+            <!-- Panel de Arduino -->
+            <div class="glass-card arduino-card">
+                <h2><i class="fas fa-microchip"></i> Arduino</h2>
                 
-                <div class="acceleration-control">
-                    <label for="accelerationSlider">
-                        <i class="fas fa-gauge"></i> Aceleración: <span id="accelValue">0.0</span> m/s²
-                    </label>
-                    <input type="range" id="accelerationSlider" min="-10" max="10" step="0.1" value="0" disabled>
-                    <div class="slider-marks">
-                        <span>-10</span>
-                        <span>0</span>
-                        <span>+10</span>
+                <div class="arduino-controls-compact">
+                    <div class="arduino-status">
+                        <span id="arduinoStatus" class="status-disconnected">● Desconectado</span>
+                    </div>
+                    
+                    <div class="arduino-port-select">
+                        <select id="arduinoPort">
+                            <option value="">Auto-detectar</option>
+                            <option value="COM1">COM1</option>
+                            <option value="COM2">COM2</option>
+                            <option value="COM3" selected>COM3</option>
+                            <option value="COM4">COM4</option>
+                            <option value="COM5">COM5</option>
+                            <option value="COM6">COM6</option>
+                            <option value="COM7">COM7</option>
+                            <option value="COM8">COM8</option>
+                        </select>
+                        <select id="baudRate">
+                            <option value="9600">9600</option>
+                            <option value="19200">19200</option>
+                            <option value="57600">57600</option>
+                            <option value="115200">115200</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group-compact">
+                        <button id="connectArduinoBtn" class="btn-primary small">
+                            <i class="fas fa-plug"></i> Conectar
+                        </button>
+                        <button id="disconnectArduinoBtn" class="btn-danger small" disabled>
+                            <i class="fas fa-times"></i> Desconectar
+                        </button>
                     </div>
                 </div>
-                
-                <!-- Estado Actual -->
-                <div class="status-display">
+            </div>
+        </div>
+        
+        <!-- Panel Central: Datos de Llegada -->
+        <div class="center-panel">
+            <div class="glass-card data-card">
+                <h3><i class="fas fa-train"></i> Datos de Llegada del Tren</h3>
+                <div id="arrivalDataDisplay" class="arrival-data-container">
+                    <p class="no-data">Esperando datos del Arduino...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Panel Derecho: Estado Actual y Datos Arduino -->
+        <div class="right-panel">
+            <!-- Estado Actual -->
+            <div class="glass-card status-card">
+                <h3><i class="fas fa-info-circle"></i> Estado Actual</h3>
+                <div class="status-grid">
                     <div class="status-item">
                         <i class="fas fa-clock"></i>
-                        <span>Tiempo: <strong id="currentTime">0.0s</strong></span>
+                        <div>
+                            <span class="status-label">Tiempo</span>
+                            <span class="status-value" id="currentTime">0.0s</span>
+                        </div>
                     </div>
                     <div class="status-item">
                         <i class="fas fa-location-arrow"></i>
-                        <span>Posición: <strong id="currentPosition">0.0m</strong></span>
+                        <div>
+                            <span class="status-label">Posición</span>
+                            <span class="status-value" id="currentPosition">0.0m</span>
+                        </div>
                     </div>
                     <div class="status-item">
                         <i class="fas fa-tachometer-alt"></i>
-                        <span>Velocidad: <strong id="currentVelocity">0.0 m/s</strong></span>
+                        <div>
+                            <span class="status-label">Velocidad</span>
+                            <span class="status-value" id="currentVelocity">0.0 m/s</span>
+                        </div>
                     </div>
                 </div>
-                
-                <!-- Conexión Status -->
-                <div class="connection-status">
-                    <span id="connectionStatus" class="status-disconnected">
-                        <i class="fas fa-wifi"></i> Desconectado
-                    </span>
+            </div>
+            
+            <!-- Datos del Arduino en Tiempo Real -->
+            <div class="glass-card arduino-data-card">
+                <h3><i class="fas fa-microchip"></i> Datos Arduino</h3>
+                <div class="data-grid-compact">
+                    <div class="data-item">
+                        <i class="fas fa-clock"></i>
+                        <span>Tiempo: <strong id="arduinoTime">--</strong></span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Velocidad: <strong id="arduinoVelocity">--</strong></span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-rocket"></i>
+                        <span>Aceleración: <strong id="arduinoAcceleration">--</strong></span>
+                    </div>
+                    <div class="data-item">
+                        <i class="fas fa-ruler"></i>
+                        <span>Distancia: <strong id="arduinoDistance">--</strong></span>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Panel de Gráficas -->
-        <div class="charts-panel">
-            <div class="glass-card chart-card">
-                <h3><i class="fas fa-chart-line"></i> Velocidad vs Tiempo</h3>
-                <canvas id="velocityChart"></canvas>
-            </div>
             
-            <div class="glass-card chart-card">
-                <h3><i class="fas fa-chart-area"></i> Posición vs Tiempo</h3>
-                <canvas id="positionChart"></canvas>
-            </div>
-            
-            <div class="glass-card chart-card">
-                <h3><i class="fas fa-chart-bar"></i> Aceleración vs Tiempo</h3>
-                <canvas id="accelerationChart"></canvas>
-            </div>
-        </div>
-        
-        <!-- Log de Estaciones -->
-        <div class="stations-panel">
+            <!-- Historial de Estaciones -->
             <div class="glass-card stations-card">
-                <h3><i class="fas fa-list"></i> Log de Estaciones</h3>
+                <h3><i class="fas fa-list"></i> Historial de Estaciones</h3>
                 <div id="stationsLog" class="stations-log">
-                    <p class="no-data">Inicia la simulación para ver el log de estaciones</p>
+                    <p class="no-data">Esperando llegadas...</p>
                 </div>
             </div>
-            
-            <!-- Tiempos de Llegada Estimados -->
-            <div class="glass-card arrival-times-card">
-                <h3><i class="fas fa-clock"></i> Tiempos de Llegada Estimados</h3>
-                <div id="arrivalTimesDisplay" class="arrival-times-display">
-                    <p class="no-data">Inicia la simulación para ver tiempos estimados</p>
-                </div>
-                <button id="refreshTimesBtn" class="btn-secondary small" disabled>
-                    <i class="fas fa-refresh"></i> Actualizar
-                </button>
-            </div>
+        </div>
+        
+        <!-- Panel Inferior: Oculto -->
+        <div class="bottom-panel" style="display: none;">
         </div>
     </div>
     
     <!-- Footer -->
     <div class="footer">
-        <p>🚂 Simulador de Tren con Física en Tiempo Real</p>
-        <p><a href="https://github.com" target="_blank">Ver código fuente</a></p>
+        <p>🚂 Sistema de Monitoreo de Tren - Datos en Tiempo Real desde Arduino</p>
     </div>
 
     <!-- Scripts -->
     <script src="js/websocket.js"></script>
-    <script src="js/charts.js"></script>
     <script src="js/app.js"></script>
+    
+    <!-- Inputs ocultos para mantener compatibilidad -->
+    <input type="hidden" id="initialVelocity" value="0">
+    <input type="hidden" id="stationDistance" value="3.20">
+    <input type="hidden" id="acceleration" value="1">
+    <input type="hidden" id="timeStep" value="0.05">
+    <input type="hidden" id="accelerationSlider" value="1">
+    <span id="accelValue" style="display:none;">1.0</span>
+    <button id="startBtn" style="display:none;"></button>
+    <button id="pauseBtn" style="display:none;"></button>
+    <button id="stopBtn" style="display:none;"></button>
+    <button id="refreshTimesBtn" style="display:none;"></button>
+    <button id="refreshPortsBtn" style="display:none;"></button>
+    <span id="connectionStatus" style="display:none;"></span>
+
 </body>
 </html>

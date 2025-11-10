@@ -25,6 +25,18 @@ class TrainSimulatorApp {
             pauseBtn: document.getElementById('pauseBtn'),
             stopBtn: document.getElementById('stopBtn'),
             
+            // Arduino
+            connectArduinoBtn: document.getElementById('connectArduinoBtn'),
+            disconnectArduinoBtn: document.getElementById('disconnectArduinoBtn'),
+            refreshPortsBtn: document.getElementById('refreshPortsBtn'),
+            arduinoPort: document.getElementById('arduinoPort'),
+            baudRate: document.getElementById('baudRate'),
+            arduinoStatus: document.getElementById('arduinoStatus'),
+            arduinoTime: document.getElementById('arduinoTime'),
+            arduinoVelocity: document.getElementById('arduinoVelocity'),
+            arduinoAcceleration: document.getElementById('arduinoAcceleration'),
+            arduinoDistance: document.getElementById('arduinoDistance'),
+            
             // Control de aceleración
             accelerationSlider: document.getElementById('accelerationSlider'),
             accelValue: document.getElementById('accelValue'),
@@ -60,6 +72,11 @@ class TrainSimulatorApp {
         this.elements.startBtn.addEventListener('click', () => this.startSimulation());
         this.elements.pauseBtn.addEventListener('click', () => this.pauseSimulation());
         this.elements.stopBtn.addEventListener('click', () => this.stopSimulation());
+        
+        // Botones Arduino
+        this.elements.connectArduinoBtn.addEventListener('click', () => this.connectArduino());
+        this.elements.disconnectArduinoBtn.addEventListener('click', () => this.disconnectArduino());
+        this.elements.refreshPortsBtn.addEventListener('click', () => this.refreshArduinoPorts());
         
         // Generar nombres de estaciones
         this.elements.generateNamesBtn.addEventListener('click', () => this.generateStationNames());
@@ -162,8 +179,42 @@ class TrainSimulatorApp {
             this.displayArrivalTimes(data.arrivalTimes);
         });
         
+        // Eventos de Arduino
+        ws.on('arduinoConnected', (data) => {
+            this.handleArduinoConnected(data);
+        });
+        
+        ws.on('arduinoDisconnected', (data) => {
+            this.handleArduinoDisconnected(data);
+        });
+        
+        ws.on('arduinoData', (data) => {
+            this.handleArduinoData(data);
+        });
+        
+        ws.on('trainDeparture', (data) => {
+            this.handleTrainDeparture(data);
+        });
+        
+        ws.on('arduinoPorts', (data) => {
+            this.updateArduinoPorts(data.ports);
+        });
+        
+        ws.on('arduinoStatus', (data) => {
+            this.updateArduinoStatus(data);
+        });
+        
+        ws.on('stationReached', (data) => {
+            this.addStationEvent(data);
+        });
+        
         // Conectar automáticamente
         ws.connect();
+        
+        // Conectar Arduino automáticamente después de 1 segundo
+        setTimeout(() => {
+            this.connectArduino();
+        }, 1500);
     }
 
     /**
@@ -261,6 +312,15 @@ class TrainSimulatorApp {
             
             container.appendChild(input);
         }
+        
+        // Enviar número de estaciones al backend para configurar Arduino
+        const ws = window.trainWebSocket;
+        if (ws && ws.send) {
+            ws.send({
+                type: 'setMaxStations',
+                payload: { maxStations: numStations }
+            });
+        }
     }
 
     /**
@@ -316,15 +376,14 @@ class TrainSimulatorApp {
     }
 
     /**
-     * Manejadores de eventos de simulación
+     * Maneja actualizaciones de la simulación
      */
     handleSimulationUpdate(data) {
         this.updateCurrentState(data);
         this.updateCharts(data);
         
-        if (data.stationEvent) {
-            this.addStationEvent(data.stationEvent);
-        }
+        // No agregar estación aquí porque ya se maneja con el evento 'stationReached'
+        // Esto evita duplicados en el historial
     }
 
     handleSimulationStarted(data) {
@@ -332,7 +391,7 @@ class TrainSimulatorApp {
         this.stationsReached = [];
         this.updateUI();
         this.clearStationsLog();
-        window.chartManager.clearCharts();
+        this.clearArrivalData();
         
         // Configurar slider con aceleración inicial
         this.elements.accelerationSlider.value = this.currentParams.acceleration;
@@ -358,7 +417,7 @@ class TrainSimulatorApp {
         this.stationsReached = [];
         this.updateUI();
         this.clearStationsLog();
-        window.chartManager.clearCharts();
+        this.clearArrivalData();
         this.resetCurrentState();
         this.showInfo('Simulación detenida');
     }
@@ -367,18 +426,7 @@ class TrainSimulatorApp {
         this.isSimulationRunning = false;
         this.updateUI();
         
-        const stats = window.chartManager.getStatistics();
-        let message = '🎉 ¡Simulación completada! Todas las estaciones fueron alcanzadas.';
-        
-        if (stats) {
-            message += `\n\nEstadísticas:\n`;
-            message += `• Tiempo total: ${stats.totalTime}s\n`;
-            message += `• Distancia total: ${stats.finalPosition}m\n`;
-            message += `• Velocidad máxima: ${stats.maxVelocity} m/s\n`;
-            message += `• Velocidad promedio: ${stats.avgVelocity} m/s`;
-        }
-        
-        this.showSuccess(message);
+        this.showSuccess('🎉 ¡Simulación completada! Todas las estaciones fueron alcanzadas.');
     }
 
     handleDisconnection() {
@@ -406,10 +454,10 @@ class TrainSimulatorApp {
     }
 
     /**
-     * Actualiza las gráficas
+     * Actualiza las gráficas - DESHABILITADO
      */
     updateCharts(data) {
-        window.chartManager.updateCharts(data);
+        // Gráficas deshabilitadas - solo mostramos datos de llegada
     }
 
     /**
@@ -418,6 +466,7 @@ class TrainSimulatorApp {
     addStationEvent(stationEvent) {
         this.stationsReached.push(stationEvent);
         
+        // Actualizar log de estaciones
         const logEntry = document.createElement('div');
         logEntry.className = 'station-entry recent';
         logEntry.innerHTML = `
@@ -447,8 +496,130 @@ class TrainSimulatorApp {
             logEntry.classList.remove('recent');
         }, 500);
         
+        // Actualizar display de datos de llegada
+        this.updateArrivalData(stationEvent);
+        
         // Actualizar tiempos de llegada automáticamente
         this.refreshArrivalTimes();
+    }
+    
+    /**
+     * Actualiza el display de datos de llegada
+     */
+    updateArrivalData(stationEvent) {
+        const container = document.getElementById('arrivalDataDisplay');
+        
+        // Remover mensaje de "no data" si existe
+        const noData = container.querySelector('.no-data');
+        if (noData) {
+            noData.remove();
+        }
+        
+        // Formatear hora de llegada
+        const arrivalDate = new Date(stationEvent.arrivalTime);
+        const arrivalTimeStr = arrivalDate.toLocaleTimeString('es-ES', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        
+        // Crear card de datos de llegada con todos los datos
+        const dataCard = document.createElement('div');
+        dataCard.className = 'arrival-data-card recent';
+        dataCard.innerHTML = `
+            <div class="arrival-header">
+                <h4><i class="fas fa-train"></i> ${stationEvent.stationName}</h4>
+                <span class="station-number">Estación #${stationEvent.stationIndex}</span>
+            </div>
+            <div class="arrival-data-grid">
+                <div class="data-box">
+                    <i class="fas fa-clock"></i>
+                    <div class="data-content">
+                        <span class="data-label">Tiempo de Recorrido</span>
+                        <span class="data-value">${stationEvent.travelTime ? stationEvent.travelTime.toFixed(3) : stationEvent.arrivalTime.toFixed(3)} s</span>
+                    </div>
+                </div>
+                <div class="data-box">
+                    <i class="fas fa-ruler"></i>
+                    <div class="data-content">
+                        <span class="data-label">Distancia Recorrida</span>
+                        <span class="data-value">${stationEvent.distance ? stationEvent.distance.toFixed(2) : stationEvent.position.toFixed(2)} m</span>
+                    </div>
+                </div>
+                <div class="data-box">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <div class="data-content">
+                        <span class="data-label">Velocidad Promedio</span>
+                        <span class="data-value">${stationEvent.velocity.toFixed(3)} m/s</span>
+                    </div>
+                </div>
+                <div class="data-box">
+                    <i class="fas fa-bolt"></i>
+                    <div class="data-content">
+                        <span class="data-label">Aceleración</span>
+                        <span class="data-value">${stationEvent.acceleration ? stationEvent.acceleration.toFixed(3) : 'N/A'} m/s²</span>
+                    </div>
+                </div>
+                <div class="data-box">
+                    <i class="fas fa-stopwatch"></i>
+                    <div class="data-content">
+                        <span class="data-label">Hora de Llegada</span>
+                        <span class="data-value">${arrivalTimeStr}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.appendChild(dataCard);
+        
+        // Scroll al final
+        container.scrollTop = container.scrollHeight;
+        
+        // Remover clase "recent" después de animación
+        setTimeout(() => {
+            dataCard.classList.remove('recent');
+        }, 500);
+    }
+    
+    /**
+     * Maneja evento de salida del tren
+     */
+    handleDeparture(data) {
+        console.log('🚂 Salida del tren detectada', data);
+        
+        // Mostrar notificación visual de salida
+        const container = document.getElementById('arrivalDataDisplay');
+        const departureNotice = document.createElement('div');
+        departureNotice.className = 'departure-notice';
+        departureNotice.innerHTML = `
+            <div class="departure-content">
+                <i class="fas fa-arrow-right"></i>
+                <span>Tren saliendo de Estación ${data.station}...</span>
+            </div>
+        `;
+        
+        // Insertar al principio
+        container.insertBefore(departureNotice, container.firstChild);
+        
+        // Remover después de 3 segundos
+        setTimeout(() => {
+            departureNotice.remove();
+        }, 3000);
+    }
+    
+    /**
+     * Maneja evento de salida del tren (alias para handleDeparture)
+     */
+    handleTrainDeparture(data) {
+        this.handleDeparture(data);
+    }
+    
+    /**
+     * Limpia el display de datos de llegada
+     */
+    clearArrivalData() {
+        const container = document.getElementById('arrivalDataDisplay');
+        container.innerHTML = '<p class="no-data">Esperando datos del Arduino...</p>';
     }
 
     /**
@@ -538,6 +709,110 @@ class TrainSimulatorApp {
 
     showInfo(message) {
         this.showMessage(message, 'info');
+    }
+    
+    /**
+     * Métodos para Arduino
+     */
+    connectArduino() {
+        const portPath = this.elements.arduinoPort.value || null;
+        const baudRate = parseInt(this.elements.baudRate.value) || 9600;
+        
+        const ws = window.trainWebSocket;
+        ws.connectArduino(portPath, baudRate);
+        
+        this.showInfo('Conectando con Arduino...');
+    }
+    
+    disconnectArduino() {
+        const ws = window.trainWebSocket;
+        ws.disconnectArduino();
+    }
+    
+    refreshArduinoPorts() {
+        const ws = window.trainWebSocket;
+        ws.listArduinoPorts();
+    }
+    
+    handleArduinoConnected(data) {
+        this.elements.arduinoStatus.textContent = '● Conectado';
+        this.elements.arduinoStatus.className = 'status-connected';
+        this.elements.connectArduinoBtn.disabled = true;
+        this.elements.disconnectArduinoBtn.disabled = false;
+        
+        this.showSuccess(`Arduino conectado: ${data.status.port}`);
+    }
+    
+    handleArduinoDisconnected(data) {
+        this.elements.arduinoStatus.textContent = '● Desconectado';
+        this.elements.arduinoStatus.className = 'status-disconnected';
+        this.elements.connectArduinoBtn.disabled = false;
+        this.elements.disconnectArduinoBtn.disabled = true;
+        
+        // Resetear datos
+        this.elements.arduinoTime.textContent = '--';
+        this.elements.arduinoVelocity.textContent = '--';
+        this.elements.arduinoAcceleration.textContent = '--';
+        this.elements.arduinoDistance.textContent = '--';
+        
+        this.showInfo('Arduino desconectado');
+    }
+    
+    handleArduinoData(data) {
+        // Actualizar display de datos de Arduino
+        this.elements.arduinoTime.textContent = `${data.time.toFixed(2)} s`;
+        this.elements.arduinoVelocity.textContent = `${data.velocity.toFixed(2)} m/s`;
+        this.elements.arduinoAcceleration.textContent = `${data.acceleration.toFixed(2)} m/s²`;
+        this.elements.arduinoDistance.textContent = `${data.distance.toFixed(1)} m`;
+        
+        // También actualizar el estado actual
+        this.updateCurrentState({
+            time: data.time,
+            position: data.distance,
+            velocity: data.velocity
+        });
+        
+        // Manejar eventos de salida y llegada
+        if (data.eventType === 'departure') {
+            this.handleDeparture(data);
+        }
+    }
+    
+    updateArduinoPorts(ports) {
+        const select = this.elements.arduinoPort;
+        
+        // Limpiar opciones actuales excepto la primera
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+        
+        // Agregar puertos encontrados
+        ports.forEach(port => {
+            const option = document.createElement('option');
+            option.value = port.path;
+            option.textContent = `${port.path}${port.manufacturer ? ' (' + port.manufacturer + ')' : ''}`;
+            select.appendChild(option);
+        });
+        
+        if (ports.length === 0) {
+            this.showInfo('No se encontraron puertos Arduino');
+        } else {
+            this.showSuccess(`Se encontraron ${ports.length} puerto(s) disponible(s)`);
+        }
+    }
+    
+    updateArduinoStatus(data) {
+        if (data.connected) {
+            this.elements.arduinoStatus.textContent = '● Conectado';
+            this.elements.arduinoStatus.className = 'status-connected';
+            this.elements.connectArduinoBtn.disabled = true;
+            this.elements.disconnectArduinoBtn.disabled = false;
+        } else {
+            this.elements.arduinoStatus.textContent = '● Desconectado';
+            this.elements.arduinoStatus.className = 'status-disconnected';
+            this.elements.connectArduinoBtn.disabled = false;
+            this.elements.disconnectArduinoBtn.disabled = true;
+        }
     }
 }
 
