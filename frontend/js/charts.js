@@ -6,6 +6,7 @@ class TrainChartManager {
     constructor() {
         this.charts = {};
         this.dataLimit = 1000; // Máximo número de puntos a mostrar
+        this.maxLapCharts = 20; // máximo número de tarjetas de vuelta en pantalla
         this.updateInterval = 50; // ms
         
         // Configuración común para todas las gráficas
@@ -78,6 +79,11 @@ class TrainChartManager {
     }
 
     /**
+     * Safe initialization: only create charts if the corresponding canvas elements exist.
+     * This method is called from the constructor but each create*Chart checks for DOM elements.
+     */
+
+    /**
      * Inicializa todas las gráficas
      */
     initializeCharts() {
@@ -90,16 +96,18 @@ class TrainChartManager {
      * Crea la gráfica de velocidad vs tiempo
      */
     createVelocityChart() {
-        const ctx = document.getElementById('velocityChart').getContext('2d');
-        
+        const el = document.getElementById('velocityChart');
+        if (!el) return; // canvas not present in DOM
+        const ctx = el.getContext('2d');
+
         this.charts.velocity = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
                     label: 'Velocidad (m/s)',
                     data: [],
-                    borderColor: 'rgba(46, 213, 115, 0.8)',
-                    backgroundColor: 'rgba(46, 213, 115, 0.1)',
+                    borderColor: 'rgba(46, 213, 115, 0.95)',
+                    backgroundColor: 'rgba(46, 213, 115, 0.06)',
                     fill: true
                 }]
             },
@@ -112,8 +120,9 @@ class TrainChartManager {
                         title: {
                             display: true,
                             text: 'Velocidad (m/s)',
-                            color: 'rgba(255, 255, 255, 0.8)'
-                        }
+                            color: '#222'
+                        },
+                        ticks: { color: '#333' }
                     }
                 }
             }
@@ -124,16 +133,18 @@ class TrainChartManager {
      * Crea la gráfica de posición vs tiempo
      */
     createPositionChart() {
-        const ctx = document.getElementById('positionChart').getContext('2d');
-        
+        const el = document.getElementById('positionChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
+
         this.charts.position = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
                     label: 'Posición (m)',
                     data: [],
-                    borderColor: 'rgba(52, 152, 219, 0.8)',
-                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderColor: 'rgba(52, 152, 219, 0.95)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.06)',
                     fill: true
                 }]
             },
@@ -146,8 +157,9 @@ class TrainChartManager {
                         title: {
                             display: true,
                             text: 'Posición (m)',
-                            color: 'rgba(255, 255, 255, 0.8)'
-                        }
+                            color: '#222'
+                        },
+                        ticks: { color: '#333' }
                     }
                 }
             }
@@ -158,16 +170,18 @@ class TrainChartManager {
      * Crea la gráfica de aceleración vs tiempo
      */
     createAccelerationChart() {
-        const ctx = document.getElementById('accelerationChart').getContext('2d');
-        
+        const el = document.getElementById('accelerationChart');
+        if (!el) return;
+        const ctx = el.getContext('2d');
+
         this.charts.acceleration = new Chart(ctx, {
             type: 'line',
             data: {
                 datasets: [{
                     label: 'Aceleración (m/s²)',
                     data: [],
-                    borderColor: 'rgba(231, 76, 60, 0.8)',
-                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    borderColor: 'rgba(231, 76, 60, 0.95)',
+                    backgroundColor: 'rgba(231, 76, 60, 0.04)',
                     fill: true
                 }]
             },
@@ -180,8 +194,9 @@ class TrainChartManager {
                         title: {
                             display: true,
                             text: 'Aceleración (m/s²)',
-                            color: 'rgba(255, 255, 255, 0.8)'
-                        }
+                            color: '#222'
+                        },
+                        ticks: { color: '#333' }
                     }
                 }
             }
@@ -356,8 +371,15 @@ class TrainChartManager {
     }
 }
 
-// Crear instancia global
-window.chartManager = new TrainChartManager();
+// Crear instancia global al cargarse el DOM para asegurar que los elementos existen
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        window.chartManager = new TrainChartManager();
+    } catch (err) {
+        console.error('No se pudo inicializar TrainChartManager:', err);
+        window.chartManager = null;
+    }
+});
 
 // Redimensionar gráficas cuando cambie el tamaño de ventana
 window.addEventListener('resize', () => {
@@ -365,3 +387,191 @@ window.addEventListener('resize', () => {
         window.chartManager.resizeCharts();
     }
 });
+
+/**
+ * Crea una gráfica combinada para una vuelta/estación con tres series: posición, velocidad y aceleración.
+ * Recibe el objeto `stationEvent` con al menos: stationIndex, travelTime (s), distance (m), velocity (m/s), acceleration (m/s^2)
+ */
+TrainChartManager.prototype.createLapChart = function(stationEvent) {
+    if (!stationEvent) return;
+
+    // Asegurar que exista el contenedor estático (index.html lo crea, pero por compatibilidad lo creamos si falta)
+    if (!document.getElementById('lapChartsContainer')) {
+        const main = document.querySelector('.main-container');
+        const wrap = document.createElement('div');
+        wrap.id = 'lapChartsWrapper';
+        wrap.className = 'lap-charts-wrapper';
+        wrap.style.display = 'none';
+        wrap.innerHTML = '<h3>Gráficas por Vuelta</h3><div id="lapChartsContainer" class="lap-charts-container"></div>';
+        if (main && main.parentNode) main.parentNode.insertBefore(wrap, main.nextSibling);
+    }
+
+    const container = document.getElementById('lapChartsContainer');
+    if (!container) return;
+
+    // Mostrar wrapper cuando haya gráficas
+    const wrapperEl = document.getElementById('lapChartsWrapper');
+    if (wrapperEl) wrapperEl.style.display = 'block';
+
+    // Inicializar array de lapCharts y limitar número de tarjetas para mantener orden
+    this._lapCharts = this._lapCharts || [];
+    if (this._lapCharts.length >= (this.maxLapCharts || 20)) {
+        // remover la más antigua
+        const oldest = this._lapCharts.shift();
+        try { if (oldest && oldest.chart) oldest.chart.destroy(); } catch (e) {}
+        try { if (oldest && oldest.card && oldest.card.parentNode) oldest.card.parentNode.removeChild(oldest.card); } catch (e) {}
+    }
+
+    const idx = stationEvent.stationIndex != null ? stationEvent.stationIndex : (this._lapCounter = (this._lapCounter || 0));
+    const label = stationEvent.stationName || `Vuelta ${idx}`;
+
+    const travelTime = (stationEvent.travelTime && stationEvent.travelTime > 0) ? stationEvent.travelTime : (stationEvent.time || 0);
+    const distance = stationEvent.distance || stationEvent.position || 0;
+    let acceleration = stationEvent.acceleration;
+    if (!acceleration || !isFinite(acceleration)) {
+        // Calcular aceleración suponiendo v0 = 0: a = 2*d / t^2
+        acceleration = travelTime > 0 ? (2 * distance) / (travelTime * travelTime) : 0;
+    }
+
+    const points = 60; // número de puntos de la serie (más puntos para curvas más suaves)
+    const dt = travelTime / Math.max(1, points - 1);
+    const timeData = [];
+    const positionData = [];
+    const velocityData = [];
+    const accelerationData = [];
+
+    for (let i = 0; i < points; i++) {
+        const t = +(i * dt).toFixed(4);
+        const pos = 0.5 * acceleration * t * t; // x = 0.5 * a * t^2 (v0=0)
+        const vel = acceleration * t; // v = a * t
+        const acc = acceleration; // constante
+
+        timeData.push(t);
+        positionData.push({ x: t, y: +pos.toFixed(4) });
+        velocityData.push({ x: t, y: +vel.toFixed(4) });
+        accelerationData.push({ x: t, y: +acc.toFixed(4) });
+    }
+
+    // Crear elemento de tarjeta para la gráfica
+    const card = document.createElement('div');
+    card.className = 'lap-chart-card';
+    const canvasId = `lapChart_${idx}_${Date.now()}`;
+    card.innerHTML = `
+        <div class="lap-chart-header">
+            <strong>${label}</strong>
+            <span class="lap-meta">Tiempo: ${travelTime.toFixed(3)} s — Distancia: ${distance.toFixed(2)} m</span>
+        </div>
+        <div class="lap-chart-canvas-wrapper"><canvas id="${canvasId}"></canvas></div>
+    `;
+
+    container.appendChild(card);
+
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Posición (m)',
+                    data: positionData,
+                    borderColor: 'rgba(52, 152, 219, 0.95)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.08)',
+                    yAxisID: 'yPosition',
+                    fill: true
+                },
+                {
+                    label: 'Velocidad (m/s)',
+                    data: velocityData,
+                    borderColor: 'rgba(46, 213, 115, 0.95)',
+                    backgroundColor: 'rgba(46, 213, 115, 0.06)',
+                    yAxisID: 'yVelocity',
+                    fill: false,
+                    borderDash: [3,2]
+                },
+                {
+                    label: 'Aceleración (m/s²)',
+                    data: accelerationData,
+                    borderColor: 'rgba(231, 76, 60, 0.95)',
+                    backgroundColor: 'rgba(231, 76, 60, 0.06)',
+                    yAxisID: 'yAcceleration',
+                    fill: false,
+                    borderDash: [6,4]
+                }
+            ]
+        },
+        options: {
+            // Base options pero adaptadas para fondo claro (gráfica blanca)
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    position: 'bottom',
+                    title: { display: true, text: 'Tiempo (s)', color: '#222' },
+                    ticks: { color: '#333', font: { size: 12 } },
+                    grid: { color: 'rgba(0,0,0,0.06)' }
+                },
+                yPosition: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Posición (m)', color: '#222' },
+                    ticks: { color: '#333', font: { size: 12 } },
+                    grid: { color: 'rgba(0,0,0,0.06)' }
+                },
+                yVelocity: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Velocidad (m/s)', color: '#222' },
+                    ticks: { color: '#333', font: { size: 12 } },
+                    grid: { drawOnChartArea: false }
+                },
+                yAcceleration: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Aceleración (m/s²)', color: '#222' },
+                    ticks: { color: '#333', font: { size: 12 } },
+                    grid: { drawOnChartArea: false },
+                    offset: true
+                }
+            },
+            plugins: {
+                legend: { display: true, position: 'bottom', labels: { color: '#222', font: { size: 12 } } },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    titleFont: { size: 13 },
+                    bodyFont: { size: 12 }
+                }
+            },
+            elements: {
+                point: { radius: 0, hitRadius: 6 },
+                line: { borderWidth: 2, tension: 0.15 }
+            }
+        }
+    });
+
+    // Guardar referencia (opcional) y actualizar contador de vueltas
+    this._lapCharts.push({ stationIndex: idx, chart, card, canvasId });
+    this._lapCounter = (this._lapCounter || 0) + 1;
+};
+
+/**
+ * Limpia todas las gráficas por vuelta y oculta el wrapper
+ */
+TrainChartManager.prototype.clearLapCharts = function() {
+    if (!this._lapCharts || this._lapCharts.length === 0) return;
+    this._lapCharts.forEach(entry => {
+        try { if (entry.chart) entry.chart.destroy(); } catch (e) {}
+        try { if (entry.card && entry.card.parentNode) entry.card.parentNode.removeChild(entry.card); } catch (e) {}
+    });
+    this._lapCharts = [];
+    const wrapperEl = document.getElementById('lapChartsWrapper');
+    if (wrapperEl) wrapperEl.style.display = 'none';
+};

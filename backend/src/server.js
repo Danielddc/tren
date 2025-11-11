@@ -54,6 +54,48 @@ class TrainSimulationServer {
             }
         });
 
+        // Endpoint de depuración: inyectar evento de llegada a estación (solo para pruebas locales)
+        this.app.post('/api/debug/stationReached', (req, res) => {
+            try {
+                const payload = req.body;
+                if (!payload || typeof payload !== 'object') {
+                    return res.status(400).json({ error: 'Payload inválido' });
+                }
+
+                // Normalizar campos mínimos esperados
+                const stationEvent = {
+                    stationIndex: payload.stationIndex ?? payload.station ?? 0,
+                    stationName: payload.stationName || `Estación ${payload.stationIndex ?? payload.station ?? 0}`,
+                    arrivalTime: payload.arrivalTime || Date.now() / 1000,
+                    travelTime: payload.travelTime || payload.time || 0,
+                    distance: payload.distance || payload.position || 3.33,
+                    velocity: payload.velocity || 0,
+                    acceleration: payload.acceleration || 0,
+                    position: payload.position || payload.distance || (payload.stationIndex ?? 0) * (payload.distance || 3.33),
+                    time: payload.time || payload.travelTime || 0
+                };
+
+                // Enviar a todos los clientes
+                if (this.wsHandler) {
+                    this.wsHandler.broadcastMessage('stationReached', stationEvent);
+                    this.wsHandler.broadcastUpdate({
+                        time: stationEvent.time,
+                        position: stationEvent.position,
+                        velocity: stationEvent.velocity,
+                        acceleration: stationEvent.acceleration,
+                        fromArduino: false,
+                        stationEvent: stationEvent,
+                        isFinished: false
+                    });
+                }
+
+                return res.json({ ok: true, stationEvent });
+            } catch (err) {
+                console.error('Error en /api/debug/stationReached:', err);
+                return res.status(500).json({ error: err.message });
+            }
+        });
+
         // Ruta principal - servir el frontend
         this.app.get('/', (req, res) => {
             res.sendFile(path.join(__dirname, '../../frontend/index.html'));

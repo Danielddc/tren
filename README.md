@@ -72,6 +72,8 @@ El servidor se iniciará en `http://localhost:8080`
 5. Usar el slider para cambiar aceleración en tiempo real
 6. Observar gráficas y tiempos de llegada actualizándose
 
+Nota: En la tarjeta "Datos de Llegada" encontrarás dos botones útiles: "Limpiar gráficas" (elimina las gráficas por vuelta) e "Inyectar evento prueba" (envía un evento sintético al servidor usando el endpoint de debug) — útiles para pruebas rápidas sin hardware.
+
 ### Uso con Arduino (Datos Reales)
 1. Cargar el sketch `arduino_example/train_sensor.ino` en tu Arduino
 2. Conectar Arduino al puerto USB

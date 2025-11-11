@@ -91,6 +91,18 @@
                 <div id="arrivalDataDisplay" class="arrival-data-container">
                     <p class="no-data">Esperando datos del Arduino...</p>
                 </div>
+
+                <!-- Barra de herramientas para acciones rápidas (limpiar gráficas / inyectar evento de prueba) -->
+                <div class="data-card-toolbar">
+                    <button id="clearLapChartsBtn" class="btn-secondary small">Limpiar gráficas</button>
+                    <button id="injectTestBtn" class="btn-primary small">Inyectar evento prueba</button>
+                </div>
+                
+                <!-- Contenedor para gráficas por vuelta dentro de la tarjeta de datos -->
+                <div id="lapChartsWrapper" class="lap-charts-wrapper" style="display:none;">
+                    <h3>Gráficas por Vuelta</h3>
+                    <div id="lapChartsContainer" class="lap-charts-container"></div>
+                </div>
             </div>
         </div>
         
@@ -160,7 +172,9 @@
         <div class="bottom-panel" style="display: none;">
         </div>
     </div>
+
     
+
     <!-- Footer -->
     <div class="footer">
         <p>🚂 Sistema de Monitoreo de Tren - Datos en Tiempo Real desde Arduino</p>
@@ -168,21 +182,24 @@
 
     <!-- Scripts -->
     <script src="js/websocket.js"></script>
+    <script src="js/charts.js"></script>
     <script src="js/app.js"></script>
     
-    <!-- Inputs ocultos para mantener compatibilidad -->
-    <input type="hidden" id="initialVelocity" value="0">
-    <input type="hidden" id="stationDistance" value="3.20">
-    <input type="hidden" id="acceleration" value="1">
-    <input type="hidden" id="timeStep" value="0.05">
-    <input type="hidden" id="accelerationSlider" value="1">
-    <span id="accelValue" style="display:none;">1.0</span>
-    <button id="startBtn" style="display:none;"></button>
-    <button id="pauseBtn" style="display:none;"></button>
-    <button id="stopBtn" style="display:none;"></button>
-    <button id="refreshTimesBtn" style="display:none;"></button>
-    <button id="refreshPortsBtn" style="display:none;"></button>
-    <span id="connectionStatus" style="display:none;"></span>
+    <!-- Inputs ocultos agrupados para mantener compatibilidad (ocultos) -->
+    <div id="hiddenInputs" style="display:none;">
+        <input type="hidden" id="initialVelocity" value="0">
+        <input type="hidden" id="stationDistance" value="3.20">
+        <input type="hidden" id="acceleration" value="1">
+        <input type="hidden" id="timeStep" value="0.05">
+        <input type="hidden" id="accelerationSlider" value="1">
+        <span id="accelValue">1.0</span>
+        <button id="startBtn"></button>
+        <button id="pauseBtn"></button>
+        <button id="stopBtn"></button>
+        <button id="refreshTimesBtn"></button>
+        <button id="refreshPortsBtn"></button>
+        <span id="connectionStatus"></span>
+    </div>
 
 </body>
 </html>

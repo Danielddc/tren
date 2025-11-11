@@ -52,6 +52,9 @@ class TrainSimulatorApp {
             
             // Log de estaciones
             stationsLog: document.getElementById('stationsLog'),
+            // Botones de utilidades (limpiar gráficas / inyectar evento de prueba)
+            clearLapChartsBtn: document.getElementById('clearLapChartsBtn'),
+            injectTestBtn: document.getElementById('injectTestBtn'),
             
             // Tiempos de llegada
             arrivalTimesDisplay: document.getElementById('arrivalTimesDisplay'),
@@ -77,6 +80,51 @@ class TrainSimulatorApp {
         this.elements.connectArduinoBtn.addEventListener('click', () => this.connectArduino());
         this.elements.disconnectArduinoBtn.addEventListener('click', () => this.disconnectArduino());
         this.elements.refreshPortsBtn.addEventListener('click', () => this.refreshArduinoPorts());
+
+        // Botones utilitarios: limpiar gráficas por vuelta
+        if (this.elements.clearLapChartsBtn) {
+            this.elements.clearLapChartsBtn.addEventListener('click', () => {
+                try {
+                    if (window.chartManager && typeof window.chartManager.clearLapCharts === 'function') {
+                        window.chartManager.clearLapCharts();
+                        this.showSuccess('Gráficas por vuelta limpiadas');
+                    }
+                } catch (err) {
+                    console.error('Error limpiando gráficas:', err);
+                    this.showError('No se pudo limpiar las gráficas');
+                }
+            });
+        }
+
+        // Botón para inyectar un evento de prueba al backend (usa endpoint de debug)
+        if (this.elements.injectTestBtn) {
+            this.elements.injectTestBtn.addEventListener('click', async () => {
+                try {
+                    const idx = (this.stationsReached.length) ? this.stationsReached.length : 0;
+                    const payload = {
+                        stationIndex: idx,
+                        travelTime: 6.0,
+                        distance: 3.33,
+                        velocity: +(3.33 / 6.0).toFixed(4),
+                        acceleration: +((2 * 3.33) / (6.0 * 6.0)).toFixed(4)
+                    };
+
+                    const res = await fetch('/api/debug/stationReached', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) throw new Error('Respuesta no OK');
+                    const body = await res.json();
+                    console.log('Evento de prueba inyectado:', body);
+                    this.showSuccess('Evento de prueba inyectado al servidor');
+                } catch (err) {
+                    console.error('Error inyectando evento de prueba:', err);
+                    this.showError('Error al inyectar evento de prueba');
+                }
+            });
+        }
         
         // Generar nombres de estaciones
         this.elements.generateNamesBtn.addEventListener('click', () => this.generateStationNames());
@@ -501,6 +549,15 @@ class TrainSimulatorApp {
         
         // Actualizar tiempos de llegada automáticamente
         this.refreshArrivalTimes();
+        
+        // Crear gráfica por vuelta/estación (tiempo vs posición/velocidad/aceleración)
+        try {
+            if (window.chartManager && typeof window.chartManager.createLapChart === 'function') {
+                window.chartManager.createLapChart(stationEvent);
+            }
+        } catch (err) {
+            console.error('Error creando gráfica de vuelta:', err);
+        }
     }
     
     /**
